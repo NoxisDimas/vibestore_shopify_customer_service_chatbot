@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  app:
+    # Port mapping for local development only
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG

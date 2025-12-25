@@ -1,0 +1,27 @@
+[project]
+name = "urban-vibe-store"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.124.4",
+    "langchain>=1.1.3",
+    "langchain-google-genai>=4.0.0",
+    "langchain-google-vertexai>=3.2.0",
+    "langchain-groq>=1.1.1",
+    "langchain-ollama>=1.0.1",
+    "langchain-openai>=1.1.3",
+    "langchain-qdrant>=1.1.0",
+    "langgraph>=1.0.5",
+    "langgraph-checkpoint-postgres>=3.0.2",
+    "mem0ai>=1.0.1",
+    "pyairtable>=3.3.0",
+    "pydantic-settings>=2.12.0",
+    "python-json-logger>=4.0.0",
+    "slowapi>=0.1.9",
+    "streamlit>=1.52.2",
+    "gunicorn>=21.2.0",
+    "uvicorn>=0.27.1",
+    "beautifulsoup4>=4.14.3",
+]

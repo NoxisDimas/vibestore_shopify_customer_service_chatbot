@@ -1,0 +1,3 @@
+FROM ghcr.io/hkuds/lightrag:latest
+
+RUN pip install --no-cache-dir qdrant-client neo4j

@@ -1,0 +1,144 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+
+    environment:
+      # Qdrant
+      - QDRANT_HOST=${QDRANT_HOST:-qdrant}
+      - QDRANT_PORT=${QDRANT_PORT:-6333}
+
+      # Database
+      - POSTGRES_URI=${POSTGRES_URI:-postgresql://postgres:postgres@postgres:5432/agent_db}
+
+      # API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+
+      # Ollama Endpoint (pakai internal network)
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL}
+
+      # LangSmith Tracing (LangChain uses LANGCHAIN_ prefix, not LANGSCMITH)
+      - LANGSMITH_TRACING=${LANGSMITH_TRACING:-true}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-default}
+      - LANGSMITH_ENDPOINT=${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+
+    depends_on:
+      - qdrant
+      - postgres
+      - ollama
+    volumes:
+      - ../:/app
+
+  streamlit:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    command: streamlit run app/ui/streamlit_app.py
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://app:8000
+      - LIGHTRAG_API_URL=http://lightrag:9621
+    volumes:
+      - ../:/app
+    depends_on:
+      - app
+
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - ../qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__MAX_REQUEST_SIZE_MB=128
+      - QDRANT__STORAGE__OPTIMIZERS__DELETED_THRESHOLD=0.5
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    restart: always
+
+  neo4j:
+    image: neo4j:5.11
+    container_name: neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_AUTH}
+    volumes:
+      - ../neo4j_data:/data
+    healthcheck:
+      test: [ "CMD", "cypher-shell", "-u", "neo4j", "-p", "${NEO4J_PASSWORD}", "RETURN 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  lightrag:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.lightrag
+    container_name: lightrag
+    ports:
+      - "9621:9621"
+    volumes:
+      - ../lightrag_data:/data
+      - ../config/config.ini:/app/data/rag_storage/config.ini
+    environment:
+      # SAME MODEL AS APP (from .env file)
+      - EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-mxbai-embed-large}
+      - EMBEDDING_BINDING=ollama
+      - EMBEDDING_BINDING_HOST=http://ollama:11434
+
+      # LLM
+      - LLM_MODEL=${GROQ_MODEL}
+      - LLM_BINDING=openai
+      - LLM_BINDING_HOST=https://api.groq.com/openai/v1
+      - LLM_BINDING_API_KEY=${GROQ_API_KEY}
+
+      # Vector & Graph Storage
+      - LIGHTRAG_VECTOR_STORAGE=QdrantVectorDBStorage
+      - LIGHTRAG_GRAPH_STORAGE=Neo4JStorage
+      - QDRANT_URL=http://qdrant:6333
+
+      # Neo4J Configuration (from .env file)
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USERNAME=${NEO4J_USERNAME}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+
+    depends_on:
+      qdrant:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: always
+
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ../pg_data:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_storage:/root/.ollama
+    restart: always
+
+volumes:
+  ollama_storage:

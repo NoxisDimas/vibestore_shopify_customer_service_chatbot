@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+.idea/
+.vscode/
+*.swp
+*.log
+
+# Project specific
+app/data/
+qdrant_data/
+neo4j_data/
+pg_data/
+lightrag_data/
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
